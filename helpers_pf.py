@@ -25,9 +25,9 @@ def average_prediction(df):
     return pred
 
 
-def running_average(df):
+def running_average(df, shift=1):
     pred = np.cumsum(df) / range(1, df.shape[0] + 1)
-    return pred
+    return pred.shift(shift)
 
 
 def get_error(data, pred):
@@ -47,7 +47,7 @@ def get_squared_error(data, pred):
 
 
 def random_walk_forecast(df):
-    return df[:-1]
+    return df.shift(1)
 
 
 def expert_forecast(df, value):
@@ -67,7 +67,10 @@ def exponential_smoothing_est(df):
     return pred
 
 
-def standard_line_plot(x, y_series, color_lines,labels,ylim,xlim,ylabel, legend = False):
+
+
+
+def standard_line_plot(x, y_series, color_lines,labels,ylim,xlim,ylabel, legend = False, show = True):
         
     plt.style.use('classic')
     plt.figure(facecolor="white")
@@ -80,5 +83,46 @@ def standard_line_plot(x, y_series, color_lines,labels,ylim,xlim,ylabel, legend 
     plt.ylabel(ylabel)
     plt.ylim(ylim)
     plt.xlim(xlim)
-    plt.show()
+    
+    if show:
+        plt.show()
 
+
+def standard_residual_plot(x, residuals, color):
+    
+    plt.style.use('classic')
+    plt.figure(facecolor="white")
+    
+    plt.scatter(x, residuals, color = 'black')
+    
+    for i in range(len(x)):
+        plt.plot((x[i], x[i]), (0, residuals[i]), color)
+    
+    plt.axhline(0, color= 'black')
+    plt.show()
+    
+    
+
+def get_table_comparing_methods(y, predictions, pred_names, evaluation_methods, evaluation_names, last_n_forecasts = 'all'):
+    
+    
+    n_predictions = len(predictions)
+    n_evaluations = len(evaluation_methods)
+    
+    df_scores = pd.DataFrame(np.nan, index=pred_names, columns=evaluation_names)
+
+    for i_pred in range(n_predictions):
+        for j_eval in range(n_evaluations):
+            
+            if last_n_forecasts == 'all':
+                prediction = predictions[i_pred]
+            else:
+                prediction = predictions[i_pred][-last_n_forecasts:]
+                y = y[-last_n_forecasts:]
+                
+            evaluation = evaluation_methods[j_eval]
+            
+            score = evaluation(y, prediction)
+            df_scores.iloc[i_pred, j_eval] = np.mean(score)
+    
+    return df_scores
