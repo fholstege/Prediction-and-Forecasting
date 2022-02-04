@@ -243,7 +243,6 @@ def random_walk_drift(df, t, return_param = False):
         pred = df[i-1] + diff_up_until_avg
         
         predictions.append(pred)
-        print(c)
         c.append(diff_up_until_avg)
 
         
@@ -313,22 +312,22 @@ def holt_winters(Y, alpha, beta):
     
 
 
-def standard_line_plot(x, y_series, color_lines,labels,ylim,xlim,ylabel, legend = False, show = True, ticks=False, tick_labels = None):
+def standard_line_plot(x, y_series, color_lines,labels,markers,ylim,xlim,ylabel, legend = False, show = True, ticks=False, tick_labels = None, legend_pos = 'upper left'):
         
     plt.style.use('classic')
     plt.figure(facecolor="white")
     
     for i in range(len(y_series)):
         
-        plt.plot(x, y_series[i], color = color_lines[i], label = labels[i])
+        plt.plot(x, y_series[i], color = color_lines[i], label = labels[i], marker=markers[i])
         
     plt.xlabel('T')
     plt.ylabel(ylabel)
-    plt.ylim(ylim)
+    plt.ylim(bottom=ylim[0], top=ylim[1])
     plt.xlim(xlim)
     
     if legend:
-        plt.legend(loc="upper left")
+        plt.legend(loc=legend_pos)
         
     if ticks:
         number_years = np.ceil(len(y_series[0])/4)
@@ -340,7 +339,7 @@ def standard_line_plot(x, y_series, color_lines,labels,ylim,xlim,ylabel, legend 
         plt.show()
 
 
-def standard_residual_plot(x, residuals, color):
+def standard_residual_plot(x, residuals, color, ylim = None, ticks=False):
     
     plt.style.use('classic')
     plt.figure(facecolor="white")
@@ -351,6 +350,15 @@ def standard_residual_plot(x, residuals, color):
         plt.plot((x[i], x[i]), (0, residuals[i]), color)
     
     plt.axhline(0, color= 'black')
+    
+    if ylim is not None:
+        plt.ylim(ylim[0], ylim[1])
+        
+    if ticks:
+        number_years = np.ceil(len(residuals)/4)
+        labels = [str(number) for number in range(1,int(number_years+1))]
+        plt.xticks(np.arange(min(x), max(x)+1, 4.0), labels =labels )
+        
     plt.show()
     
     
@@ -381,7 +389,7 @@ def get_table_comparing_methods(y, predictions, pred_names, evaluation_methods, 
 
 
 
-def forecast_weights_exp(T, alpha):
+def forecast_weights_exp(T, alpha, ylim = None):
     
     weights = []
     
@@ -398,19 +406,21 @@ def forecast_weights_exp(T, alpha):
 def calc_memory_index(alpha):
     return np.log(0.1)/np.log(1-alpha)
 
-def weights_plot(T, weights, label, color, scale=False, width = 0.6):
+def weights_plot(T, weights, label, color, scale=False, width = 0.6, ylim =None, label2='0.1'):
     
     plt.style.use('classic')
     plt.figure(facecolor="white")
     if scale:
-        plt.axhline(0.1, color = 'black')
-        plt.bar(range(1, T+1),  [x / weights[0] for x in weights], width=width, label = label, color = color)
+        plt.axhline(0.1, color = 'black', label = label2)
+        plt.bar(range(1, T+1),  [x / weights[0] for x in weights], width=width, label = label, color = color, linewidth=0)
     else:
         plt.bar(range(1, T+1), weights, width=0.6, label = label, color = color)
     plt.xlim([0, T])
+    if ylim is not None:
+        plt.ylim(ylim)
     plt.legend(loc="upper right")
     
-def param_plot(t_index, params, colors, labels, width=0.3, xlim=[0,12], ylim = None):
+def param_plot(t_index, params, colors, labels, width=0.3, xlim=[0,12], ylim = None, loc='lower right'):
     
     plt.style.use('classic')
     plt.figure(facecolor="white")
@@ -429,7 +439,7 @@ def param_plot(t_index, params, colors, labels, width=0.3, xlim=[0,12], ylim = N
 
    
     # Finding the best position for legends and putting it
-    plt.legend(loc='upper right')
+    plt.legend(loc=loc)
     
 
 
