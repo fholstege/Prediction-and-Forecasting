@@ -20,6 +20,7 @@ ts_8 = df_ts['Var8']
 ts_9 = df_ts['Var9']
 
 
+
 def produce_forecasts(df, train_i):
     
     # Running Average
@@ -29,7 +30,7 @@ def produce_forecasts(df, train_i):
     rw_pred = random_walk_forecast(df)
     
     # exponential smoothing - est.
-    exp_pred_est = exponential_smoothing_est(df, train_i, n_values_gridsearch=10)
+    exp_pred_est = exponential_smoothing_est(df, train_i,test_start_i=train_i, n_values_gridsearch=10)
     
     # running trend
     run_trend_pred = running_trend(df, df.index + 1)
@@ -38,7 +39,7 @@ def produce_forecasts(df, train_i):
     rw_drift_pred = random_walk_drift(df, df.index + 1)
     
     # holt winters
-    hw_est = holt_winters_est(df, train_i, n_values_gridsearch=10)
+    hw_est = holt_winters_est(df, train_i,test_start_i=train_i, n_values_gridsearch=10)
     
     # dict of the predictions
     dict_predictions = {'running_avg': running_avg_pred,
@@ -61,7 +62,8 @@ def create_prediction_plot(ts_index,ts, results_inSample, results_outSample, met
     
     
     standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], [series_name, label_name + ' (in-sample)', label_name + ' (out-sample)'],['o', None, None], xlim,ylim, series_name, legend = True)
-    
+
+
 
 def evaluate_series_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Series 1'):
     
@@ -122,3 +124,5 @@ table_inSample_series7, table_outSample_series7 =  evaluate_series_comprehensive
 table_inSample_series8, table_outSample_series8 =  evaluate_series_comprehensive(ts_8, name_series = 'Series 8')
 table_inSample_series9, table_outSample_series9 =  evaluate_series_comprehensive(ts_9, name_series = 'Series 9')
 
+print(table_inSample_series9.to_latex())
+print(table_outSample_series9.to_latex())

@@ -67,14 +67,17 @@ def exponential_smoothing(df, alpha):
     result[0] = np.nan
     return result
 
-def exponential_smoothing_est(df, train_i, n_values_gridsearch = 100, return_param=False):
+def exponential_smoothing_est(df, train_i, test_start_i=None, n_values_gridsearch = 100, return_param=False):
+    
+    if test_start_i is None:
+        test_start_i=len(df)
     
     # save predictions
     pred = [np.nan]*train_i
     alpha = [np.nan]*train_i
 
     # get the predictions from train_i onwards
-    for i in range(1, len(df) - train_i+1):
+    for i in range(1, (test_start_i - train_i)+1):
         
         # select train data
         df_train = df[:(train_i+i)]
@@ -89,19 +92,33 @@ def exponential_smoothing_est(df, train_i, n_values_gridsearch = 100, return_par
         # add last prediction to list
         pred.append(pred_at_i)
     
+    for j in range(1, len(df) - test_start_i+1):
+        print('using best estimate of alpha: {}'.format(alpha_at_i))
+        
+        df_test = df[:(test_start_i+j)]
+        
+
+        pred_at_i = exponential_smoothing(df_test, alpha_at_i)[-1]
+        alpha.append(alpha_at_i)
+
+        pred.append(pred_at_i)
+    
     if return_param:
         return pred, alpha
     else:
         return pred
 
-def holt_winters_est(df, train_i, n_values_gridsearch = 10, return_param = False):
+def holt_winters_est(df, train_i,test_start_i=None, n_values_gridsearch = 10, return_param = False):
+    
+    if test_start_i is None:
+        test_start_i=len(df)
     
     pred = [np.nan]*train_i
     alpha = [np.nan]*train_i
     beta = [np.nan]*train_i
     
     # get the predictions from train_i onwards
-    for i in range(1, len(df) - train_i+1):
+    for i in range(1, (test_start_i - train_i)+1):
         
         # select train data
         df_train = df[:(train_i+i)]
@@ -115,6 +132,18 @@ def holt_winters_est(df, train_i, n_values_gridsearch = 10, return_param = False
         beta.append(beta_at_i)
         
         # add last prediction to list
+        pred.append(pred_at_i)
+    
+    for j in range(1, len(df) - test_start_i+1):
+        print('using best estimate of alpha, beta: {}, {}'.format(alpha_at_i, beta_at_i))
+        
+        df_test = df[:(test_start_i+j)]
+        
+        # get predictions based on that alpha/beta combination
+        pred_at_i = holt_winters_package(df_test, alpha_at_i, beta_at_i)[-1]
+        alpha.append(alpha_at_i)
+        beta.append(beta_at_i)
+        
         pred.append(pred_at_i)
     
     if return_param:
