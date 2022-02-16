@@ -10,10 +10,10 @@ from statsmodels.tsa.arima.model import ARIMA
 import numpy as np
 import pandas as pd
 from helpers_pf import *
+from statsmodels.tsa.stattools import adfuller
 
 
-
-def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,**kwargs):
+def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,max_p=4, max_q=1, criterion='bic',**kwargs):
     
     # how many in train/test
     n_in_train = len(train_y)
@@ -24,14 +24,14 @@ def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,**k
     
     # estimate parameters based on training set or pre-defined
     if param =='est':
-        p = select_param_AR(train_y, **kwargs)
-        trained_model = AutoReg(train_y, lags=p).fit()
+        p = select_param_AR(train_y)
+        trained_model = AutoReg(train_y, lags=p, **kwargs).fit()
     else:
-        trained_model = AutoReg(train_y, lags=p).fit()
+        trained_model = AutoReg(train_y, lags=p, **kwargs).fit()
     
     # save in sample fit here
-    inSample = list(trained_model.predict(0,n_in_train-1).values)
-    inSample = inSample + [np.nan]*n_in_test
+    inSample = list(trained_model.predict(0,n_in_train-1, dynamic=True).values)
+    inSample = [np.nan] + inSample[:-1] + [np.nan]*(n_in_test)
     
     # change train_y, test_y based on h-step forecast
     if h>1:
@@ -49,7 +49,7 @@ def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,**k
          train_y = pd.Series(np.concatenate((train_y.values, [test_y.iloc[i]])))
         
          # fit the model again
-         trained_model = AutoReg(train_y, lags=1).fit()
+         trained_model = AutoReg(train_y, lags=p, **kwargs).fit()
         
          # get predictions based on that alpha
          pred_at_i = trained_model.forecast(steps=h).values[-1]
@@ -66,7 +66,10 @@ def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,**k
         return pred
 
 
-def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,return_inSample=False,**kwargs):
+def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,d=0,return_inSample=False,
+                   max_p=4, max_q=1,max_d=1, criterion='bic',
+                   train_exog=None, test_exog=None,
+                   **kwargs):
     
     # how many in train/test
     n_in_train = len(train_y)
@@ -74,26 +77,40 @@ def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,return_inSample=Fal
     
     # save predictions here
     pred = [np.nan]*n_in_train
-    d=0
+    
     
     # estimate parameters based on training set or pre-defined
     if param =='est':
-        p, q = select_param_ARMA(train_y, **kwargs)
-        trained_model = ARIMA(train_y, order=(p,d,q)).fit(method='statespace')
+        p, q, d = select_param_ARMA(train_y, max_p=max_p,max_q=max_q,max_d=max_d, criterion=criterion, exog=train_exog)
+        trained_model = ARIMA(train_y, order=(p,d,q),exog=train_exog, **kwargs).fit(method='statespace')
     else:
-        trained_model = ARIMA(train_y, order=(p,d,q)).fit(method='statespace')
+        trained_model = ARIMA(train_y, order=(p,d,q),exog=train_exog,**kwargs).fit(method='statespace')
     
     # save in sample fit here
     inSample = list(trained_model.predict(0,n_in_train-1).values)
-    inSample = inSample + [np.nan]*n_in_test
+    if d != 0:
+        inSample[0] = np.nan
+        inSample =  inSample + [np.nan]*(n_in_test)
+    else:
+        inSample = [np.nan] + inSample[:-1] + [np.nan]*(n_in_test)
+
     
     # change train_y, test_y based on h-step forecast
     if h>1:
         train_y = train_y[:(n_in_train - h + 1)]
         test_y = pd.concat([ train_y[-(h-1):], test_y])
+        
+        if train_exog is not None:
+            train_exog = train_exog[:(n_in_train - h + 1)]
+            test_exog = pd.concat([ train_exog[-(h-1):], test_exog])
     
     # get the first prediction
-    pred_first = trained_model.forecast(steps=h).values[-1]
+    if train_exog is not None:
+        pred_first = trained_model.forecast(steps=h, exog=test_exog.iloc[0:h,:]).values[-1]
+    else:
+        pred_first = trained_model.forecast(steps=h).values[-1]
+
+    # add to list
     pred.append(pred_first)
         
     # get the other predictions
@@ -101,12 +118,25 @@ def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,return_inSample=Fal
         
          # select train data
          train_y = pd.Series(np.concatenate((train_y.values, [test_y.iloc[i]])))
+         
+         # if exogenous include
+         if train_exog is not None:
+             
+             # set training (exog)
+             train_exog = pd.DataFrame(np.concatenate((train_exog.values, [test_exog.iloc[i]])))
         
-         # fit the model again
-         trained_model = ARIMA(train_y, order=(p,d,q)).fit(method='statespace')
-        
-         # get predictions based on that p, q
-         pred_at_i = trained_model.forecast(steps=h).values[-1]
+             # fit the model again
+             trained_model = ARIMA(train_y, order=(p,d,q),exog=train_exog, **kwargs).fit(method='statespace')
+             
+             # get prediction
+             pred_at_i = trained_model.forecast(steps=h, exog = test_exog.iloc[i:(i+h),:]).values[-1]
+
+             
+         else:
+             # train model
+             trained_model = ARIMA(train_y, order=(p,d,q), **kwargs).fit(method='statespace')
+             # get predictions based on that p, q
+             pred_at_i = trained_model.forecast(steps=h).values[-1]
         
          # add last prediction to list
          pred.append(pred_at_i)
@@ -122,42 +152,44 @@ def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,return_inSample=Fal
 
 
 
-def select_param_ARMA(train_y, criterion='aic',max_p=4, max_q=4):
+def select_param_ARMA(train_y, criterion='aic',max_p=4, max_q=4, max_d=1, exog=None):
     
     # starting parameters
     best_criterion_score = np.Inf
     best_p = 0
     best_q = 0
-    d=0 # since no ARIMA
+    best_d = 0
     
     # go over all parameter combinations
-    for q in range(0, max_q+1):
-        for p in range(0, max_p+1):
-            
-            # estimate the model at a lag
-            arma_model_at_lag = ARIMA(train_y, order=(p,d,q)).fit(method='statespace')
-            
-            # get the score for a particular criterion
-            if criterion=='aic':
-                criterion_score_lag = arma_model_at_lag.aic
-            elif criterion=='bic':
-                criterion_score_lag = arma_model_at_lag.bic
-            elif criterion =='hqic':
-                criterion_score_lag = arma_model_at_lag.hqic
-            else:
-                print("Specify the criterion: one of aic, bic, hqic")
-            
-            print('p: {}, q:{} with a {} of {}'.format(p,q,criterion, criterion_score_lag))
-
-            # if better score, save
-            if criterion_score_lag < best_criterion_score:
-                best_criterion_score = criterion_score_lag
-                best_p = p
-                best_q = q
+    for d in range(0, max_d + 1):
+        for q in range(0, max_q+1):
+            for p in range(0, max_p+1):
                 
-    print('Best p/q: {}/{}, with a {} of {}'.format(best_p,best_q, criterion, best_criterion_score))
+                # estimate the model at a lag
+                arma_model_at_lag = ARIMA(train_y, order=(p,d,q), exog=exog).fit(method='statespace')
+                
+                # get the score for a particular criterion
+                if criterion=='aic':
+                    criterion_score_lag = arma_model_at_lag.aic
+                elif criterion=='bic':
+                    criterion_score_lag = arma_model_at_lag.bic
+                elif criterion =='hqic':
+                    criterion_score_lag = arma_model_at_lag.hqic
+                else:
+                    print("Specify the criterion: one of aic, bic, hqic")
+                
+                print('p: {}, q:{}, d{}, with a {} of {}'.format(p,q,d,criterion, criterion_score_lag))
+    
+                # if better score, save
+                if criterion_score_lag < best_criterion_score:
+                    best_criterion_score = criterion_score_lag
+                    best_p = p
+                    best_q = q
+                    best_d = d
+                
+    print('Best p/q/d: {}/{}/{}, with a {} of {}'.format(best_p,best_q,best_d, criterion, best_criterion_score))
 
-    return best_p, best_q
+    return best_p, best_q, best_d
 
 
 
@@ -194,26 +226,33 @@ def select_param_AR(train_y, criterion='aic', max_p=4):
 
     return best_p
         
-def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,h=1, criterion='bic', return_inSample=False):
+def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,max_d=1, h=1, d=0,criterion='bic', return_inSample=False, exog=None,**kwargs):
     
     # training for gas sales: first six observations
     train_y = y[:train_i]
     test_y = y[train_i:]
     
+    if exog is not None:
+        train_exog = exog[:train_i]
+        test_exog = exog[train_i:]
+    else:
+        train_exog=None
+        test_exog = None
+    
     # get predictions: ar(1), ma(1), arma(1,1)
     if return_inSample:
-        ar1_prediction, ar1_inSample = est_AR_model(train_y, test_y, param='set',h=h, p=1, return_inSample=return_inSample)
-        ma1_prediction, ma1_inSample = est_ARMA_model(train_y, test_y, param='set',h=h, p=0, q=1, return_inSample=return_inSample)
-        arma1_prediction, arma1_inSample = est_ARMA_model(train_y, test_y, param='set',h=h, p=1, q=1,  return_inSample=return_inSample)
+        ar1_prediction, ar1_inSample = est_ARMA_model(train_y, test_y, param='set',h=h, p=1,q=0,d=d, max_d=max_d,return_inSample=return_inSample, train_exog=train_exog,test_exog=test_exog, **kwargs)
+        ma1_prediction, ma1_inSample = est_ARMA_model(train_y, test_y, param='set',h=h, p=0, q=1,d=d,max_d=max_d, return_inSample=return_inSample,train_exog=train_exog,test_exog=test_exog, **kwargs)
+        arma1_prediction, arma1_inSample = est_ARMA_model(train_y, test_y, param='set',h=h, p=1, q=1,d=d, max_d=max_d, return_inSample=return_inSample,train_exog=train_exog,test_exog=test_exog,**kwargs)
     else:
         
-        ar1_prediction = est_AR_model(train_y, test_y, param='set',h=h, p=1, return_inSample=return_inSample)
-        ma1_prediction = est_ARMA_model(train_y, test_y, param='set',h=h, p=0, q=1, return_inSample=return_inSample)
-        arma1_prediction = est_ARMA_model(train_y, test_y, param='set',h=h, p=1, q=1,  return_inSample=return_inSample)
+        ar1_prediction = est_ARMA_model(train_y, test_y, param='set',h=h, p=1, q=0, d=d,max_d=max_d, return_inSample=return_inSample,train_exog=train_exog,test_exog=test_exog, **kwargs)
+        ma1_prediction = est_ARMA_model(train_y, test_y, param='set',h=h, p=0, q=1,d=d,max_d=max_d, return_inSample=return_inSample,train_exog=train_exog,test_exog=test_exog, **kwargs)
+        arma1_prediction = est_ARMA_model(train_y, test_y, param='set',h=h, p=1, q=1, d=d,max_d=max_d, return_inSample=return_inSample,train_exog=train_exog,test_exog=test_exog, **kwargs)
         
 
     # estimate the arma
-    armaEst_prediction, armaEst_inSample = est_ARMA_model(train_y, test_y, param='est',h=h, max_p=max_p, max_q=max_q, criterion=criterion,  return_inSample=True)
+    armaEst_prediction, armaEst_inSample = est_ARMA_model(train_y, test_y, param='est',h=h, max_p=max_p, max_q=max_q,max_d=max_d, criterion=criterion,  return_inSample=True,train_exog=train_exog,test_exog=test_exog, **kwargs)
 
     
     # dict of the predictions
@@ -234,9 +273,9 @@ def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,h=1, criterion='bic', re
         return dict_predictions
 
 
-def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,h=1, criterion='bic', last_n=10, ylim=[0,12],name_series='Series 1'):
+def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,max_d=1,h=1,d=0, criterion='bic', last_n=10, ylim=[0,12],name_series='Series 1',exog=None,show_inSample=True, **kwargs):
     
-    forecasts,inSample = produce_forecasts_arma(y, train_i = train_i,  max_p=max_p, max_q=max_q, h=h, criterion=criterion, return_inSample=True)
+    forecasts,inSample = produce_forecasts_arma(y, train_i = train_i,  max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d, criterion=criterion, return_inSample=True,exog=exog, **kwargs)
     list_forecasts = [value for key, value in forecasts.items()]
     list_inSample = [value for key, value in inSample.items()]
     
@@ -270,7 +309,9 @@ def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,h=1, crite
                        name_method,
                        list_names_method[i],
                        series_name = name_series,
-                       ylim=ylim
+                       ylim=ylim,
+                       show_inSample=show_inSample,
+                       h=h
                        )
         i = i + 1
     
@@ -280,28 +321,37 @@ def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,h=1, crite
     
 
 
-def create_prediction_plot_arma(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50]):
+def create_prediction_plot_arma(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50], show_inSample=True,h=1):
     
     
     # get the xlim
     xlim = [np.nanmin(ts) - 10, np.nanmax(ts) + 10]
     
     # predictions out of sample
-    #pred_outSample = ([np.nan] * length_sample) +list(results_outSample[method_name][length_sample:(length_sample + length_forecast)])
     pred_outSample = list(results_outSample[method_name])
     
     # predictions in sample
-    #pred_inSample = ([np.nan] * length_validation) +list(results_inSample[method_name][length_validation:length_sample]) + ([np.nan]*length_forecast)
     pred_inSample = list(results_inSample[method_name])
+    
+    if show_inSample:
+        series = [ts, pred_outSample,pred_inSample ]
+        labels = [series_name, label_name + ' (out-sample, h={})'.format(h), label_name + ' (in-sample, h={})'.format(h)]
+    else:
+        series = [ts, pred_outSample]
+        labels =[series_name, label_name + ' (out-sample, h={})'.format(h)]
 
     
     # create the lineplot
-    standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], [series_name, label_name + ' (in-sample)', label_name + ' (out-sample)'],['o', None, None], xlim,ylim, series_name, legend = True)
+    standard_line_plot(ts_index,series ,['red', 'blue', 'green'], labels,['o', None, None], xlim,ylim, series_name, legend = True)
 
-def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50]):
+def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50],h=1):
     
     # get the xlim
     xlim = [np.nanmin(ts) - 10, np.nanmax(ts) + 10]
+    
+    # set the labels
+    labels = [series_name, label_name + ' (validation, h={})'.format(h), label_name + ' (test, h={})'.format(h)]
+
     
     # predictions out of sample
     pred_outSample = ([np.nan] * length_sample) +list(results_outSample[method_name][length_sample:(length_sample + length_forecast)])
@@ -311,17 +361,17 @@ def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, res
 
     
     # create the lineplot
-    standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], [series_name, label_name + ' (in-sample)', label_name + ' (out-sample)'],['o', None, None], xlim,ylim, series_name, legend = True)
+    standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], labels,['o', None, None], xlim,ylim, series_name, legend = True)
 
 
-def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Series 1', max_p=4, max_q=4, h=1, criterion='bic'):
+def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Series 1', max_p=4, max_q=4, max_d=1, h=1,d=0, criterion='bic'):
     
     # select validation set
     ts_validation = ts[:train_i]
     
     # build the insample and out of sample forecasts
-    results_ts1_dict_inSample = produce_forecasts_arma(ts_validation, train_i = val_i, max_p=max_p, max_q=max_q, h=h,criterion=criterion, return_inSample=False)
-    results_ts1_dict_outSample = produce_forecasts_arma(ts, train_i = train_i,  max_p=max_p, max_q=max_q, h=h, criterion=criterion, return_inSample=False)
+    results_ts1_dict_inSample = produce_forecasts_arma(ts_validation, train_i = val_i, max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d,criterion=criterion, return_inSample=False)
+    results_ts1_dict_outSample = produce_forecasts_arma(ts, train_i = train_i,  max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d, criterion=criterion, return_inSample=False)
     
     # set the indeces
     t_ts1_inSample = ts_validation.index + 1
@@ -361,8 +411,21 @@ def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Ser
                        results_ts1_dict_outSample,
                        name_method,
                        list_names_method[i],
-                       series_name = name_series
+                       series_name = name_series,
+                       h=h
                        )
         i = i + 1
     
     return round(table_inSample, 2), round(table_outSample,2)
+
+
+def augmented_dicky_fuller(ts, d, regr_trend="c", criterion="aic"):
+    while d > 0:
+        ts = ts.diff().dropna()
+        d = d - 1
+
+    test_result = adfuller(ts, regression=regr_trend, autolag=criterion)
+    if test_result[1] > .05:
+        warnings.warn("The timeseries is not stationary, p-value: {}".format(test_result[1]))
+
+    print(test_result[1])
