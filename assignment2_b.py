@@ -10,6 +10,9 @@ from statsmodels.tsa.arima.model import ARIMA
 from boxjenkins import *
 from statsmodels.graphics.tsaplots import plot_acf
 import warnings
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.graphics.tsaplots import plot_acf
+
 warnings.filterwarnings("ignore")
 
 
@@ -35,40 +38,69 @@ augmented_dicky_fuller(ts_7, 1)
 augmented_dicky_fuller(ts_8, 1)
 augmented_dicky_fuller(ts_9, 1)
 
+# ACF plot
+plot_acf(ts_1[:40], lags=10)
+plot_acf(ts_2[:40], lags=10)
+plot_acf(ts_3, lags=10)
+plot_acf(ts_4, lags=10)
+plot_acf(ts_5, lags=10)
+plot_acf(ts_6, lags=10)
+plot_acf(ts_7, lags=10)
+plot_acf(ts_8, lags=10)
+plot_acf(ts_9, lags=10)
+
+
 
 
 # results for h=1
-table_inSample_series1_h1, table_outSample_series1_h1 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic', max_p = 4, max_q = 4, max_d = 0, d=0)
-table_inSample_series2_h1, table_outSample_series2_h1 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
+table_inSample_series1_h1, table_outSample_series1_h1 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic', max_p = 4, max_q = 4, max_d = 0, d=0, param='set', p=4, q=4)
+table_inSample_series2_h1, table_outSample_series2_h1 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1, param='set', p=2,q=4)
 table_inSample_series3_h1, table_outSample_series3_h1 =  evaluate_arma_comprehensive(ts_3, name_series = 'Series 3', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h1, table_outSample_series4_h1 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=0)
-table_inSample_series5_h1, table_outSample_series5_h1 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series5_h1, table_outSample_series6_h1 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h1, table_outSample_series4_h1 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series5_h1, table_outSample_series5_h1 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series5_h1, table_outSample_series6_h1 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1)
+table_inSample_series4_h1, table_outSample_series4_h1 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=0,  param='set', p=2,q=1)
+table_inSample_series5_h1, table_outSample_series5_h1 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5', criterion='aic', max_p = 4, max_q = 3, max_d = 1, d=1)
+table_inSample_series6_h1, table_outSample_series6_h1 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=3,save=True, savename_start='ts6')
+table_inSample_series7_h1, table_outSample_series7_h1 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=4,save=True, savename_start='ts7')
+table_inSample_series8_h1, table_outSample_series8_h1 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1,save=True, savename_start='ts8')
+table_inSample_series9_h1, table_outSample_series9_h1 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9', criterion='aic', max_p = 4, max_q = 4, max_d = 1, d=1, save=True, savename_start='ts9')
+
 
 
 # results for h=2
-table_inSample_series1_h2, table_outSample_series1_h2 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 0, d=0)
-table_inSample_series2_h2, table_outSample_series2_h2 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2',criterion='aic',h=2,max_p = 4, max_q = 4, max_d = 1, d=1)
+table_inSample_series1_h2, table_outSample_series1_h2 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 0, d=0, param='set', p=4, q=4)
+table_inSample_series2_h2, table_outSample_series2_h2 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2',criterion='aic',h=2,max_p = 4, max_q = 4, max_d = 1, d=1, param='set', p=2,q=4)
 table_inSample_series3_h2, table_outSample_series3_h2 =  evaluate_arma_comprehensive(ts_3, name_series = 'Series 3',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h2, table_outSample_series4_h2 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4',criterion='aic',h=2,max_p = 4, max_q = 4, max_d = 1, d=0)
-table_inSample_series5_h2, table_outSample_series5_h2 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5',criterion='aic',h=2,  max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series6_h2, table_outSample_series6_h2 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h2, table_outSample_series7_h2 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series5_h2, table_outSample_series8_h2 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series6_h2, table_outSample_series9_h2 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1)
-
+table_inSample_series4_h2, table_outSample_series4_h2 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4',criterion='aic',h=2,max_p = 4, max_q = 4, max_d = 1, d=0,  param='set', p=2,q=1)
+table_inSample_series5_h2, table_outSample_series5_h2 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5',criterion='aic',h=2,  max_p = 4, max_q = 3, max_d = 1, d=1)
+table_inSample_series6_h2, table_outSample_series6_h2 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=3,save=True, savename_start='ts6')
+table_inSample_series7_h2, table_outSample_series7_h2 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=4,save=True, savename_start='ts7')
+table_inSample_series8_h2, table_outSample_series8_h2 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1,save=True, savename_start='ts8')
+table_inSample_series9_h2, table_outSample_series9_h2 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9',criterion='aic',h=2, max_p = 4, max_q = 4, max_d = 1, d=1, save=True, savename_start='ts9')
 
 
 # results for h=4
-table_inSample_series1_h4, table_outSample_series1_h4 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic',h=4,max_p = 4, max_q = 4, max_d = 0, d=0)
-table_inSample_series2_h4, table_outSample_series2_h4 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
+table_inSample_series1_h4, table_outSample_series1_h4 =  evaluate_arma_comprehensive(ts_1, name_series = 'Series 1',criterion='aic',h=4,max_p = 4, max_q = 4, max_d = 0, d=0,param='set', p=4, q=4)
+table_inSample_series2_h4, table_outSample_series2_h4 =  evaluate_arma_comprehensive(ts_2, name_series = 'Series 2',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1, param='set', p=2,q=4)
 table_inSample_series3_h4, table_outSample_series3_h4 =  evaluate_arma_comprehensive(ts_3, name_series = 'Series 3',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h4, table_outSample_series4_h4 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4',criterion='aic',h=4,max_p = 4, max_q = 4, max_d = 0, d=0)
-table_inSample_series5_h4, table_outSample_series5_h4 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series6_h4, table_outSample_series6_h4 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series4_h4, table_outSample_series7_h4 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series5_h4, table_outSample_series8_h4 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
-table_inSample_series6_h4, table_outSample_series9_h4 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1)
+table_inSample_series4_h4, table_outSample_series4_h4 =  evaluate_arma_comprehensive(ts_4, name_series = 'Series 4',criterion='aic',h=4,max_p = 4, max_q = 4, max_d = 0, d=0,  param='set', p=2,q=1)
+table_inSample_series5_h4, table_outSample_series5_h4 =  evaluate_arma_comprehensive(ts_5, name_series = 'Series 5',criterion='aic',h=4, max_p = 4, max_q = 3, max_d = 1, d=1)
+table_inSample_series6_h4, table_outSample_series6_h4 =  evaluate_arma_comprehensive(ts_6, name_series = 'Series 6',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=3,save=True, savename_start='ts6')
+table_inSample_series7_h4, table_outSample_series7_h4 =  evaluate_arma_comprehensive(ts_7, name_series = 'Series 7',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1,  param='set', p=1,q=4, save=True, savename_start='ts7')
+table_inSample_series8_h4, table_outSample_series8_h4 =  evaluate_arma_comprehensive(ts_8, name_series = 'Series 8',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1,save=True, savename_start='ts8')
+table_inSample_series9_h4, table_outSample_series9_h4 =  evaluate_arma_comprehensive(ts_9, name_series = 'Series 9',criterion='aic',h=4, max_p = 4, max_q = 4, max_d = 1, d=1,save=True, savename_start='ts9')
+
+
+print(round(table_inSample_series9_h1,2).to_latex())
+print(round(table_outSample_series9_h1,2).to_latex())
+
+
+print(round(table_inSample_series9_h2,2).to_latex())
+print(round(table_outSample_series9_h2,2).to_latex())
+
+print(round(table_inSample_series9_h4,2).to_latex())
+print(round(table_outSample_series9_h4,2).to_latex())
+
+
+
+
+
+

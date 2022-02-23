@@ -341,7 +341,7 @@ def holt_winters(Y, alpha, beta):
     
 
 
-def standard_line_plot(x, y_series, color_lines,labels,markers,ylim,xlim,ylabel, legend = False, show = True, ticks=False, tick_labels = None, legend_pos = 'upper left'):
+def standard_line_plot(x, y_series, color_lines,labels,markers,ylim,xlim,ylabel, legend = False, show = True, ticks=False, tick_labels = None, legend_pos = 'upper left', save=False, savename='ts1'):
         
     plt.style.use('classic')
     plt.figure(facecolor="white")
@@ -363,6 +363,9 @@ def standard_line_plot(x, y_series, color_lines,labels,markers,ylim,xlim,ylabel,
         print(number_years)
         labels = [str(number) for number in range(1,int(number_years+1))]
         plt.xticks(np.arange(min(x), max(x)+1, 4.0), labels =labels )
+        
+    if save:
+        plt.savefig(savename)
 
     if show:
         plt.show()

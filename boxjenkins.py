@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from helpers_pf import *
 from statsmodels.tsa.stattools import adfuller
+import warnings
 
 
 def est_AR_model(train_y, test_y, param='est',h=1, p=1,return_inSample=False,max_p=4, max_q=1, criterion='bic',**kwargs):
@@ -85,6 +86,7 @@ def est_ARMA_model(train_y, test_y, param='est',h=1, p=1,q=1,d=0,return_inSample
         trained_model = ARIMA(train_y, order=(p,d,q),exog=train_exog, **kwargs).fit(method='statespace')
     else:
         trained_model = ARIMA(train_y, order=(p,d,q),exog=train_exog,**kwargs).fit(method='statespace')
+    
     
     # save in sample fit here
     inSample = list(trained_model.predict(0,n_in_train-1).values)
@@ -162,8 +164,8 @@ def select_param_ARMA(train_y, criterion='aic',max_p=4, max_q=4, max_d=1, exog=N
     
     # go over all parameter combinations
     for d in range(0, max_d + 1):
-        for q in range(0, max_q+1):
-            for p in range(0, max_p+1):
+        for q in range(1, max_q+1):
+            for p in range(1, max_p+1):
                 
                 # estimate the model at a lag
                 arma_model_at_lag = ARIMA(train_y, order=(p,d,q), exog=exog).fit(method='statespace')
@@ -226,7 +228,7 @@ def select_param_AR(train_y, criterion='aic', max_p=4):
 
     return best_p
         
-def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,max_d=1, h=1, d=0,criterion='bic', return_inSample=False, exog=None,**kwargs):
+def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,max_d=1,p=1,q=1, h=1, d=0,criterion='bic', param='est', return_inSample=False, exog=None,**kwargs):
     
     # training for gas sales: first six observations
     train_y = y[:train_i]
@@ -252,9 +254,8 @@ def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,max_d=1, h=1, d=0,criter
         
 
     # estimate the arma
-    armaEst_prediction, armaEst_inSample = est_ARMA_model(train_y, test_y, param='est',h=h, max_p=max_p, max_q=max_q,max_d=max_d, criterion=criterion,  return_inSample=True,train_exog=train_exog,test_exog=test_exog, **kwargs)
+    armaEst_prediction, armaEst_inSample = est_ARMA_model(train_y, test_y, param=param,h=h,p=p,q=q,d=d, max_p=max_p, max_q=max_q,max_d=max_d, criterion=criterion,  return_inSample=True,train_exog=train_exog,test_exog=test_exog, **kwargs)
 
-    
     # dict of the predictions
     dict_predictions = {'ar_1': ar1_prediction,
                     'ma_1': ma1_prediction,
@@ -273,7 +274,7 @@ def produce_forecasts_arma(y, train_i, max_p=4, max_q=1,max_d=1, h=1, d=0,criter
         return dict_predictions
 
 
-def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,max_d=1,h=1,d=0, criterion='bic', last_n=10, ylim=[0,12],name_series='Series 1',exog=None,show_inSample=True, **kwargs):
+def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,max_d=1,p=1,q=1,h=1,d=0, criterion='bic', last_n=10, ylim=[0,12],name_series='Series 1',exog=None,show_inSample=True, **kwargs):
     
     forecasts,inSample = produce_forecasts_arma(y, train_i = train_i,  max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d, criterion=criterion, return_inSample=True,exog=exog, **kwargs)
     list_forecasts = [value for key, value in forecasts.items()]
@@ -282,7 +283,7 @@ def evaluate_arma_forecasts_noValidation(y, train_i, max_p=4, max_q=1,max_d=1,h=
     # evaluate in different ways
     list_evaluations =  [get_error, get_absolute_error, get_ape, get_squared_error]
     list_names_method = ['AR(1)', 'MA(1)','ARMA(1,1)', 'ARMA(est.)']
-    list_names_eval = ['Mean Residual', 'Mean Abs. Residual', 'Mean Abs. Perc. Residual', 'Mean Sq. Residual']
+    list_names_eval = ['ME', 'MAE', 'MAPE', 'MSE']
     
     # in sample
     table_results = get_table_comparing_methods(y,
@@ -344,7 +345,7 @@ def create_prediction_plot_arma(ts_index,ts, results_inSample, results_outSample
     # create the lineplot
     standard_line_plot(ts_index,series ,['red', 'blue', 'green'], labels,['o', None, None], xlim,ylim, series_name, legend = True)
 
-def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50],h=1):
+def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, results_outSample, method_name,label_name, length_sample= 40, length_forecast = 10, length_validation= 20, series_name ='Series 1',  ylim = [0, 50],h=1, save=False, savename='ts1'):
     
     # get the xlim
     xlim = [np.nanmin(ts) - 10, np.nanmax(ts) + 10]
@@ -361,17 +362,16 @@ def create_prediction_plot_arma_comprehensive(ts_index,ts, results_inSample, res
 
     
     # create the lineplot
-    standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], labels,['o', None, None], xlim,ylim, series_name, legend = True)
+    standard_line_plot(ts_index,[ts, pred_outSample,pred_inSample ] ,['red', 'blue', 'green'], labels,['o', None, None], xlim,ylim, series_name, legend = True, save=save, savename=savename)
 
-
-def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Series 1', max_p=4, max_q=4, max_d=1, h=1,d=0, criterion='bic'):
+def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Series 1', max_p=4, max_q=4, max_d=1,p=1,q=1, h=1,d=0, criterion='bic', param='est', save=False, savename_start='ts1'):
     
     # select validation set
     ts_validation = ts[:train_i]
     
     # build the insample and out of sample forecasts
-    results_ts1_dict_inSample = produce_forecasts_arma(ts_validation, train_i = val_i, max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d,criterion=criterion, return_inSample=False)
-    results_ts1_dict_outSample = produce_forecasts_arma(ts, train_i = train_i,  max_p=max_p, max_q=max_q,max_d=max_d, h=h,d=d, criterion=criterion, return_inSample=False)
+    results_ts1_dict_inSample = produce_forecasts_arma(ts_validation, train_i = val_i, max_p=max_p, max_q=max_q,max_d=max_d,p=p,q=q ,h=h,d=d,criterion=criterion,param=param ,return_inSample=False)
+    results_ts1_dict_outSample = produce_forecasts_arma(ts, train_i = train_i,  max_p=max_p, max_q=max_q,max_d=max_d,p=p,q=q, h=h,d=d, criterion=criterion, param=param,return_inSample=False)
     
     # set the indeces
     t_ts1_inSample = ts_validation.index + 1
@@ -384,7 +384,8 @@ def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Ser
     # evaluate in different ways
     list_evaluations =  [get_error, get_absolute_error, get_ape, get_squared_error]
     list_names_method = ['AR(1)', 'MA(1)','ARMA(1,1)', 'ARMA(est.)']
-    list_names_eval = ['Mean Residual', 'Mean Abs. Residual', 'Mean Abs. Perc. Residual', 'Mean Sq. Residual']
+    save_names = ['ar1', 'ma1', 'arma1','armaEst']
+    list_names_eval = ['ME', 'MAE', 'MAPE', 'MSE']
     
     # in sample
     table_inSample = get_table_comparing_methods(ts_validation,
@@ -405,15 +406,22 @@ def evaluate_arma_comprehensive(ts, train_i = 40, val_i = 20, name_series = 'Ser
     
     i = 0
     for name_method in list_of_methods:
+        
+        savename = savename_start +'_'+save_names[i]+'_h'+ str(h)
 
-        create_prediction_plot_arma_comprehensive(t_ts1_outSample, ts,
+
+        plot = create_prediction_plot_arma_comprehensive(t_ts1_outSample, ts,
                        results_ts1_dict_inSample,
                        results_ts1_dict_outSample,
                        name_method,
                        list_names_method[i],
                        series_name = name_series,
-                       h=h
+                       h=h,
+                       save=save,
+                       savename=savename
                        )
+      
+        
         i = i + 1
     
     return round(table_inSample, 2), round(table_outSample,2)
@@ -426,6 +434,7 @@ def augmented_dicky_fuller(ts, d, regr_trend="c", criterion="aic"):
 
     test_result = adfuller(ts, regression=regr_trend, autolag=criterion)
     if test_result[1] > .05:
-        warnings.warn("The timeseries is not stationary, p-value: {}".format(test_result[1]))
+        print("The timeseries is not stationary, p-value: {}".format(test_result[1]))
+        
 
     print(test_result[1])
