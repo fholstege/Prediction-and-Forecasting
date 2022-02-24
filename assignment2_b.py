@@ -39,15 +39,15 @@ augmented_dicky_fuller(ts_8, 1)
 augmented_dicky_fuller(ts_9, 1)
 
 # ACF plot
-plot_acf(ts_1[:40], lags=10)
-plot_acf(ts_2[:40], lags=10)
-plot_acf(ts_3, lags=10)
+plot_acf(ts_1, lags=10)
+plot_acf(ts_2.diff().dropna(), lags=10)
+plot_acf(ts_3.diff().dropna(), lags=10)
 plot_acf(ts_4, lags=10)
-plot_acf(ts_5, lags=10)
-plot_acf(ts_6, lags=10)
-plot_acf(ts_7, lags=10)
-plot_acf(ts_8, lags=10)
-plot_acf(ts_9, lags=10)
+plot_acf(ts_5.diff().dropna(), lags=10)
+plot_acf(ts_6.diff().dropna(), lags=10)
+plot_acf(ts_7.diff().dropna(), lags=10)
+plot_acf(ts_8.diff().dropna(), lags=10)
+plot_acf(ts_9.diff().dropna(), lags=10)
 
 
 

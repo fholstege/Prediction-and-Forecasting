@@ -25,7 +25,7 @@ gas_data.columns = ['GasolineSales']
 
 # create quick acf plot  - use train data
 gas_data_train = gas_data['GasolineSales'][:7]
-plot_acf(gas_data['GasolineSales'], lags=4, alpha=.05)
+plot_acf(gas_data['GasolineSales'].diff().dropna(), lags=4, alpha=.05)
 
 # check adf
 augmented_dicky_fuller(gas_data_train, d=1)
@@ -143,7 +143,7 @@ bike.columns = ['sales']
 
 # create quick acf plot  - use train data
 bike_sales_train = bike['sales'][:6]
-plot_acf(bike['sales'], lags=4, alpha=.05)
+plot_acf(bike['sales'].diff().dropna(), lags=4, alpha=.05)
 
 
 # adf test after ct
